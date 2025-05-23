@@ -1,4 +1,7 @@
 {
   "name": "asakara_aiver",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "engines": {
+    "node": "18.x" // または ">=18.0.0" など、具体的なバージョンを指定
+  }
 }
