@@ -1,39 +1,28 @@
-document.addEventListener("DOMContentLoaded", () => {
-    const hintList = document.querySelector("#hints ul");
-    const answerDiv = document.getElementById("answer");
-    const addHintBtn = document.querySelector("#add_hint button");
-    const showAnswerBtn = document.querySelector("#show_ans button");
+let data = null;
+let hintIndex = 0;
 
-    // 仮のデータ（後でGemini APIで取得したものに置き換え）
-    let currentHintIndex = 0;
-    let hints = [];
-    let theme = "";
+async function fetchTheme() {
+  const res = await fetch('/api/gemini');
+  data = await res.json();
+  document.getElementById('hint-list').innerHTML = '';
+  document.querySelector('#answer h1').textContent = 'お題が最終的に表示される場所';
+  hintIndex = 0;
+}
 
-    // Gemini API などから取得したと仮定するデータ
-    function fetchThemeAndHints() {
-        // この部分はAPIから取得するように書き換え予定
-        theme = "名前にしたら強そうな野菜といえば？";
-        hints = ["ゴボウ", "レンコン", "アスパラガス", "ブロッコリー"];
-    }
+function showNextHint() {
+  if (!data || hintIndex >= data.hints.length) return;
+  const li = document.createElement('li');
+  li.textContent = data.hints[hintIndex++];
+  document.getElementById('hint-list').appendChild(li);
+}
 
-    function showNextHint() {
-        if (currentHintIndex < hints.length) {
-            const li = document.createElement("li");
-            li.textContent = hints[currentHintIndex];
-            hintList.appendChild(li);
-            currentHintIndex++;
-        } else {
-            alert("これ以上ヒントはありません！");
-        }
-    }
+function showAnswer() {
+  if (data) {
+    document.querySelector('#answer h1').textContent = `お題：${data.theme}`;
+  }
+}
 
-    function showAnswer() {
-        answerDiv.innerHTML = `<h1>お題：${theme}</h1>`;
-    }
+document.getElementById('add-hint').addEventListener('click', showNextHint);
+document.getElementById('show-answer').addEventListener('click', showAnswer);
 
-    // 初期化
-    fetchThemeAndHints();
-
-    addHintBtn.addEventListener("click", showNextHint);
-    showAnswerBtn.addEventListener("click", showAnswer);
-});
+fetchTheme();
