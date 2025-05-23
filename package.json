@@ -1,0 +1,7 @@
+{
+  "name": "asamade_aiver",
+  "type": "module",
+  "dependencies": {
+    "@google/generative-ai": "^0.5.0"
+  }
+}
