@@ -1,8 +1,4 @@
 {
   "name": "asakara_aiver",
-  "version": "1.0.0",
-  "type": "commonjs",
-  "scripts": {
-    "dev": "vercel dev"
-  }
+  "version": "1.0.0"
 }
