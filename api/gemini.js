@@ -1,5 +1,12 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({ error: "APIキーが設定されていません" });
+  }
+
   const prompt = `
 「◯◯といえば？」という形式で、ユニークなお題と、それに対する回答候補を4つ出してください。
 以下の形式で、**JSONのみを返してください**（日本語の説明や補足は禁止）：
@@ -11,34 +18,22 @@ export default async function handler(req, res) {
 `;
 
   try {
-    const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=' + apiKey, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      }),
-    });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    const result = await response.json();
-    console.log('Gemini response:', JSON.stringify(result, null, 2)); // ★ログ追加
+    const result = await model.generateContent(prompt);
+    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      return res.status(500).json({ error: 'Geminiの返答が取得できません', result });
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) {
+      return res.status(500).json({ error: 'JSON形式の抽出に失敗', rawText: text });
     }
 
-    const jsonMatch = text.match(/\{[\s\S]*?\}/);
-    if (!jsonMatch) {
-      return res.status(500).json({ error: 'JSON形式が見つかりません', raw: text });
-    }
+    const data = JSON.parse(match[0]);
+    res.status(200).json(data);
 
-    const parsed = JSON.parse(jsonMatch[0]);
-    res.status(200).json(parsed);
-  } catch (err) {
-    console.error('Gemini API Error:', err);
-    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    res.status(500).json({ error: "Geminiの返答が取得できません", message: error.message });
   }
 }
