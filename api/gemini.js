@@ -22,9 +22,14 @@ export default async function handler(req, res) {
     });
 
     const result = await response.json();
+    console.log('Gemini response:', JSON.stringify(result, null, 2)); // ★ログ追加
+
     const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    // Geminiの応答からJSON部分を抽出
+    if (!text) {
+      return res.status(500).json({ error: 'Geminiの返答が取得できません', result });
+    }
+
     const jsonMatch = text.match(/\{[\s\S]*?\}/);
     if (!jsonMatch) {
       return res.status(500).json({ error: 'JSON形式が見つかりません', raw: text });
