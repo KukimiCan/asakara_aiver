@@ -10,27 +10,30 @@ export default async function handler(req, res) {
 }
 `;
 
-{
-  "theme": "...",
-  "hints": ["...", "...", "...", "..."]
-}`;
-
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    })
-  });
-
-  const result = await response.json();
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
   try {
-    const json = JSON.parse(text);
-    res.status(200).json(json);
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + apiKey, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      }),
+    });
+
+    const result = await response.json();
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    // Geminiの応答からJSON部分を抽出
+    const jsonMatch = text.match(/\{[\s\S]*?\}/);
+    if (!jsonMatch) {
+      return res.status(500).json({ error: 'JSON形式が見つかりません', raw: text });
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    res.status(200).json(parsed);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to parse Gemini response', text });
+    console.error('Gemini API Error:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
   }
 }
