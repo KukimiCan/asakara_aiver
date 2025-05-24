@@ -1,38 +1,30 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from '@google/genai';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+const model = genAI.getGenerativeModel({ model: 'gemini-flash-2.0' });
 
 export default async function handler(req, res) {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return res.status(500).json({ error: "APIキーが設定されていません" });
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
   const prompt = `
-「◯◯といえば？」という形式で、ユニークなお題と、それに対する回答候補を4つ出してください。
-以下の形式で、**JSONのみを返してください**（日本語の説明や補足は禁止）：
+次の形式でJSONのみを返してください。説明・補足は禁止です：
 
 {
   "theme": "お題（例：朝ごはん）",
   "hints": ["ヒント1", "ヒント2", "ヒント3", "ヒント4"]
 }
+
+「◯◯といえば？」という形式で、ユニークなお題と、それに対するヒントを4つ出してください。
 `;
 
   try {
     const result = await model.generateContent(prompt);
-    const text = result.response.text(); // ← 最新版ではこう書ける
+    const text = result.response.text();
 
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) {
-      return res.status(500).json({ error: 'JSON形式の抽出に失敗', rawText: text });
-    }
+    const jsonText = text.match(/\{[\s\S]*?\}/)?.[0];
+    const json = JSON.parse(jsonText);
 
-    const data = JSON.parse(match[0]);
-    res.status(200).json(data);
+    res.status(200).json(json);
   } catch (err) {
-    console.error("Gemini error:", err);
-    res.status(500).json({ error: "Geminiの返答が取得できません", message: err.message });
+    res.status(500).json({ error: 'Geminiの返答が取得できません', message: err.message });
   }
 }
