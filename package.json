@@ -6,6 +6,7 @@
     "dev": "vercel dev"
   },
   "dependencies": {
+    "@google/genai": "^1.0.1",
     "@google/generative-ai": "^0.24.1"
   }
 }
