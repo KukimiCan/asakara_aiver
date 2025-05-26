@@ -1,36 +1,58 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>「◯◯といえば？」ゲーム</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>朝までそれ正解ジェネレーター</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 2rem; }
-    button, select { margin-top: 1rem; font-size: 1rem; }
-    #hint-list li { margin: 0.5rem 0; }
-    #history { margin-top: 2rem; border-top: 1px solid #ccc; padding-top: 1rem; }
-    .history-item { margin-bottom: 1rem; }
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      font-size: 1.5rem;
+    }
+    ul {
+      padding-left: 1.2rem;
+    }
+    button {
+      margin: 0.5rem 0.5rem 0 0;
+    }
+    .history-item {
+      margin-bottom: 1rem;
+      padding: 0.5rem;
+      background: #fff;
+      border-left: 4px solid #ccc;
+    }
   </style>
 </head>
 <body>
-  <h1>「◯◯といえば？」ゲーム</h1>
+  <h1>「朝までそれ正解」風ヒントクイズ</h1>
 
-  <label for="hintCount">ヒント最大数を選択：</label>
+  <label for="hintCount">最大ヒント数：</label>
   <select id="hintCount">
-    <option value="1">1つ</option>
-    <option value="2">2つ</option>
-    <option value="3">3つ</option>
-    <option value="4" selected>4つ</option>
+    <option value="1">1個</option>
+    <option value="2">2個</option>
+    <option value="3">3個</option>
+    <option value="4" selected>4個</option>
   </select>
 
-  <ul id="hint-list"></ul>
-  <button id="revealBtn">ヒントを見る</button>
-  <div id="answer"></div>
-  <button id="nextQuestionBtn">次のお題</button>
-
-  <div id="history">
-    <h2>出題履歴</h2>
-    <div id="historyList"></div>
+  <div>
+    <button id="revealBtn">ヒントを見る</button>
+    <button id="showAnswerBtn">解答を見る</button>
+    <button id="nextQuestionBtn" style="display: none;">次の問題へ</button>
   </div>
+
+  <h2>ヒント一覧：</h2>
+  <ul id="hint-list"></ul>
+
+  <div id="answer"></div>
+
+  <hr />
+
+  <h2>出題履歴：</h2>
+  <div id="historyList"></div>
 
   <script>
     let currentData = null;
@@ -46,25 +68,38 @@
 
         currentData = data;
         hintIndex = 0;
+
         document.getElementById('hint-list').innerHTML = '';
         document.getElementById('answer').innerHTML = '';
+        document.getElementById('nextQuestionBtn').style.display = 'none';
+        document.getElementById('revealBtn').style.display = 'inline-block';
+        document.getElementById('showAnswerBtn').style.display = 'inline-block';
+
       } catch (err) {
         alert('エラーが発生しました: ' + err.message);
       }
     }
 
     function updateHints() {
-      if (!currentData) return;
+      if (!currentData || hintIndex >= Math.min(currentData.hints.length, maxHints)) return;
+
       const list = document.getElementById('hint-list');
-      if (hintIndex < Math.min(currentData.hints.length, maxHints)) {
-        const hint = currentData.hints[hintIndex];
-        const li = document.createElement('li');
-        li.textContent = hint;
-        list.appendChild(li);
-        hintIndex++;
-      } else {
-        document.getElementById('answer').innerHTML = `<h2>正解：${currentData.theme}</h2>`;
+      const hint = currentData.hints[hintIndex];
+      const li = document.createElement('li');
+      li.textContent = hint;
+      list.appendChild(li);
+      hintIndex++;
+
+      if (hintIndex >= Math.min(currentData.hints.length, maxHints)) {
+        document.getElementById('revealBtn').style.display = 'none';
       }
+    }
+
+    function showAnswer() {
+      if (!currentData) return;
+
+      document.getElementById('answer').innerHTML = `<h2>正解：${currentData.theme}</h2>`;
+      document.getElementById('nextQuestionBtn').style.display = 'inline-block';
     }
 
     function updateHistory(theme, hints) {
@@ -76,23 +111,23 @@
       historyList.prepend(div);
     }
 
-    document.getElementById('revealBtn').addEventListener('click', () => {
-      updateHints();
-    });
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('revealBtn').addEventListener('click', updateHints);
+      document.getElementById('showAnswerBtn').addEventListener('click', showAnswer);
 
-    document.getElementById('nextQuestionBtn').addEventListener('click', async () => {
-      if (currentData) {
-        updateHistory(currentData.theme, currentData.hints.slice(0, maxHints));
-      }
-      await fetchData();
-    });
+      document.getElementById('nextQuestionBtn').addEventListener('click', async () => {
+        if (currentData) {
+          updateHistory(currentData.theme, currentData.hints.slice(0, maxHints));
+        }
+        await fetchData();
+      });
 
-    document.getElementById('hintCount').addEventListener('change', (e) => {
-      maxHints = parseInt(e.target.value, 10);
-    });
+      document.getElementById('hintCount').addEventListener('change', (e) => {
+        maxHints = parseInt(e.target.value, 10);
+      });
 
-    // 初回読み込み
-    fetchData();
+      fetchData(); // 初回読み込み
+    });
   </script>
 </body>
 </html>
