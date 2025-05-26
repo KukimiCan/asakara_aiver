@@ -20,6 +20,8 @@ export default async function handler(req, res) {
 
 `;
 
+
+
   try {
     const result = await model.generateContent(prompt);
     const text = await result.response.text();
