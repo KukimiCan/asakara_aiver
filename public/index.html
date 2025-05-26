@@ -2,47 +2,96 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Asakara</title>
-  <link rel="stylesheet" href="/styles/styles.css">
+  <title>「◯◯といえば？」ゲーム</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 2rem; }
+    button, select { margin-top: 1rem; font-size: 1rem; }
+    #hint-list li { margin: 0.5rem 0; }
+    #history { margin-top: 2rem; border-top: 1px solid #ccc; padding-top: 1rem; }
+    .history-item { margin-bottom: 1rem; }
+  </style>
 </head>
 <body>
-  <div id="answer">
-    <h1>お題が最終的に表示される場所</h1>
-  </div>
-  <div id="hints">
-    <ul id="hint-list"></ul>
-  </div>
-  <div id="add_hint">
-    <button id="addHintBtn">ヒント追加</button>
-  </div>
-  <div id="show_ans">
-    <button id="showAnswerBtn">解答を見る</button>
+  <h1>「◯◯といえば？」ゲーム</h1>
+
+  <label for="hintCount">ヒント最大数を選択：</label>
+  <select id="hintCount">
+    <option value="1">1つ</option>
+    <option value="2">2つ</option>
+    <option value="3">3つ</option>
+    <option value="4" selected>4つ</option>
+  </select>
+
+  <ul id="hint-list"></ul>
+  <button id="revealBtn">ヒントを見る</button>
+  <div id="answer"></div>
+  <button id="nextQuestionBtn">次のお題</button>
+
+  <div id="history">
+    <h2>出題履歴</h2>
+    <div id="historyList"></div>
   </div>
 
   <script>
-    let hints = [];
-    let theme = '';
+    let currentData = null;
     let hintIndex = 0;
+    let maxHints = 4;
+    const history = [];
 
     async function fetchData() {
-      const res = await fetch('/api/gemini');
-      const data = await res.json();
-      theme = data.theme;
-      hints = data.hints;
+      try {
+        const res = await fetch('/api/gemini');
+        const data = await res.json();
+        if (data.error) throw new Error(data.message);
+
+        currentData = data;
+        hintIndex = 0;
+        document.getElementById('hint-list').innerHTML = '';
+        document.getElementById('answer').innerHTML = '';
+      } catch (err) {
+        alert('エラーが発生しました: ' + err.message);
+      }
     }
 
-    document.getElementById('addHintBtn').addEventListener('click', () => {
-      if (hintIndex < hints.length) {
+    function updateHints() {
+      if (!currentData) return;
+      const list = document.getElementById('hint-list');
+      if (hintIndex < Math.min(currentData.hints.length, maxHints)) {
+        const hint = currentData.hints[hintIndex];
         const li = document.createElement('li');
-        li.textContent = hints[hintIndex++];
-        document.getElementById('hint-list').appendChild(li);
+        li.textContent = hint;
+        list.appendChild(li);
+        hintIndex++;
+      } else {
+        document.getElementById('answer').innerHTML = `<h2>正解：${currentData.theme}</h2>`;
       }
+    }
+
+    function updateHistory(theme, hints) {
+      history.push({ theme, hints });
+      const historyList = document.getElementById('historyList');
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      div.innerHTML = `<strong>${theme}</strong><ul>${hints.map(h => `<li>${h}</li>`).join('')}</ul>`;
+      historyList.prepend(div);
+    }
+
+    document.getElementById('revealBtn').addEventListener('click', () => {
+      updateHints();
     });
 
-    document.getElementById('showAnswerBtn').addEventListener('click', () => {
-      document.getElementById('answer').innerHTML = `<h1>お題：${theme}</h1>`;
+    document.getElementById('nextQuestionBtn').addEventListener('click', async () => {
+      if (currentData) {
+        updateHistory(currentData.theme, currentData.hints.slice(0, maxHints));
+      }
+      await fetchData();
     });
 
+    document.getElementById('hintCount').addEventListener('change', (e) => {
+      maxHints = parseInt(e.target.value, 10);
+    });
+
+    // 初回読み込み
     fetchData();
   </script>
 </body>

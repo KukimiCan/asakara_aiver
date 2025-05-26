@@ -1,9 +1,7 @@
-// api/gemini.js
-
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // または gemini-1.5-pro / gemini-flash-2
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // または 'gemini-1.5-pro'
 
 export default async function handler(req, res) {
   const prompt = `
@@ -18,16 +16,14 @@ export default async function handler(req, res) {
 `;
 
   try {
-    const result = await model.generateContent([prompt]);
-    const text = result.response.text();
-
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
     const jsonText = text.match(/\{[\s\S]*?\}/)?.[0];
     const json = JSON.parse(jsonText);
-
     res.status(200).json(json);
   } catch (err) {
     res.status(500).json({
-      error: "Geminiの返答が取得できません",
+      error: 'Geminiの返答が取得できません',
       message: err.message,
     });
   }
