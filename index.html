@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>朝までそれ正解！</title>
+  <style>
+    body { font-family: sans-serif; background: #fffbe6; padding: 2rem; text-align: center; }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    button { padding: 0.5rem 1rem; margin: 1rem; font-size: 1rem; cursor: pointer; }
+    #prompt { font-size: 1.5rem; margin: 1.5rem 0; }
+    ul { list-style: none; padding: 0; }
+    li { background: #ffe; margin: 0.5rem auto; padding: 0.5rem; border: 1px solid #ccc; max-width: 400px; }
+    #error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>朝までそれ正解！</h1>
+  <div id="prompt">お題を生成中...</div>
+  <button id="nextBtn">次のお題へ</button>
+  <ul id="answers"></ul>
+  <div id="error"></div>
+
+  <script>
+    let questions = [];
+
+    const hiraList = [..."あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわ"];
+
+    async function loadQuestions() {
+      try {
+        const res = await fetch("questions.csv");
+        const text = await res.text();
+        questions = text
+          .split(/\r?\n/)
+          .map(line => line.trim())
+          .filter(line => line); // 空行除去
+      } catch (err) {
+        document.getElementById("error").textContent = `お題の読み込みに失敗しました: ${err.message}`;
+      }
+    }
+
+    async function getAnswers(promptText) {
+      try {
+        const response = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: `「${promptText}」というお題に対して、ユニークで面白い答えを5つ挙げてください。一つずつ箇条書きで、日本語で出力してください。` })
+        });
+
+        const data = await response.json();
+
+        if (!data || !data.candidates || !data.candidates[0]) {
+          throw new Error("有効な回答が得られませんでした。");
+        }
+
+        return data.candidates[0].content.parts[0].text
+          .split(/\n|\r/)
+          .map(line => line.replace(/^[-\d\.\s]+/, "").trim())
+          .filter(line => line);
+      } catch (err) {
+        document.getElementById("error").textContent = `エラー: ${err.message}`;
+        return [];
+      }
+    }
+
+    async function showNewQuestion() {
+      document.getElementById("error").textContent = "";
+
+      if (questions.length === 0) {
+        document.getElementById("prompt").textContent = "お題が読み込まれていません";
+        return;
+      }
+
+      const randomQ = questions[Math.floor(Math.random() * questions.length)];
+      const randomKana = hiraList[Math.floor(Math.random() * hiraList.length)];
+      const promptText = `${randomKana}で始まる${randomQ}`;
+      document.getElementById("prompt").textContent = promptText;
+      document.getElementById("answers").innerHTML = "<li>回答を生成中...</li>";
+
+      const answers = await getAnswers(promptText);
+      const ul = document.getElementById("answers");
+      ul.innerHTML = "";
+      answers.forEach(answer => {
+        const li = document.createElement("li");
+        li.textContent = answer;
+        ul.appendChild(li);
+      });
+    }
+
+    document.getElementById("nextBtn").addEventListener("click", showNewQuestion);
+
+    window.addEventListener("load", async () => {
+      await loadQuestions();
+      showNewQuestion();
+    });
+  </script>
+
+</body>
+</html>
