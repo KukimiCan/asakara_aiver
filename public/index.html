@@ -55,6 +55,85 @@
   <h2>出題履歴：</h2>
   <div id="historyList"></div>
 
-  <script>
-    let currentData = null;
-    let hintIn
+<script>
+  let currentData = null;
+  let hintIndex = 0;
+  let maxHints = 4;
+  const history = [];
+
+  async function fetchData() {
+    try {
+      const res = await fetch('/api/gemini');
+      const data = await res.json();
+      if (data.error) throw new Error(data.message);
+
+      if (!data.hints || data.hints.length === 0) {
+        throw new Error('回答が取得できませんでした。');
+      }
+
+      currentData = data;
+      hintIndex = 0;
+
+      document.getElementById('hint-list').innerHTML = '';
+      document.getElementById('themeText').textContent = data.theme;
+      document.getElementById('nextQuestionBtn').style.display = 'none';
+      document.getElementById('revealBtn').style.display = 'inline-block';
+      document.getElementById('showAnswerBtn').style.display = 'inline-block';
+    } catch (err) {
+      alert('エラーが発生しました: ' + err.message);
+    }
+  }
+
+  function updateHints() {
+    if (!currentData || !currentData.hints || currentData.hints.length === 0) {
+      alert("回答データが存在しません。再読み込みしてください。");
+      return;
+    }
+
+    if (hintIndex >= Math.min(currentData.hints.length, maxHints)) return;
+
+    const list = document.getElementById('hint-list');
+    const hint = currentData.hints[hintIndex];
+    const li = document.createElement('li');
+    li.textContent = hint;
+    list.appendChild(li);
+    hintIndex++;
+
+    if (hintIndex >= Math.min(currentData.hints.length, maxHints)) {
+      document.getElementById('revealBtn').style.display = 'none';
+      document.getElementById('nextQuestionBtn').style.display = 'inline-block';
+    }
+  }
+
+  function showAnswer() {
+    if (!currentData) return;
+    alert(`お題は「${currentData.theme}」です`);
+  }
+
+  function updateHistory(theme, hints) {
+    history.push({ theme, hints });
+    const historyList = document.getElementById('historyList');
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `<strong>${theme}</strong><ul>${hints.map(h => `<li>${h}</li>`).join('')}</ul>`;
+    historyList.prepend(div);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('revealBtn').addEventListener('click', updateHints);
+    document.getElementById('showAnswerBtn').addEventListener('click', showAnswer);
+
+    document.getElementById('nextQuestionBtn').addEventListener('click', async () => {
+      if (currentData) {
+        updateHistory(currentData.theme, currentData.hints.slice(0, maxHints));
+      }
+      await fetchData();
+    });
+
+    document.getElementById('hintCount').addEventListener('change', (e) => {
+      maxHints = parseInt(e.target.value, 10);
+    });
+
+    fetchData(); // 初回読み込み
+  });
+</script>
