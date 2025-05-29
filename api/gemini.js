@@ -4,26 +4,31 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// CSVファイルからお題をランダムに選択
-async function getRandomTheme() {
-  const filePath = path.join(process.cwd(), 'themes.csv');
-  const data = await fs.readFile(filePath, 'utf-8');
-  const lines = data
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0);
-  const randomLine = lines[Math.floor(Math.random() * lines.length)];
-  return randomLine;
+function getRandomHiragana() {
+  const hiraganas = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん'.split('');
+  return hiraganas[Math.floor(Math.random() * hiraganas.length)];
 }
 
-// Geminiへのプロンプト（JSON形式で複数の回答を返させる）
+async function getRandomThemeWithPrefix() {
+  const filePath = path.join(process.cwd(), 'themes.csv');
+  const data = await fs.readFile(filePath, 'utf-8');
+  const lines = data.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  const baseTheme = lines[Math.floor(Math.random() * lines.length)];
+  const hira = getRandomHiragana();
+  const fullTheme = `「${hira}」で始まる${baseTheme}`;
+  return fullTheme;
+}
+
 function createPrompt(theme) {
   return `
-あなたは「朝からそれ正解」のAI参加者です。
-次のテーマに対して、複数人の参加者が出しそうな「正解だと思う回答」を5つ考えてください。
+あなたは「朝からそれ正解」に参加しているAI回答者です。
+次のお題に対して、5人の参加者が出しそうな「単語」や「短いフレーズ」を考えてください。
 
-・出力形式は必ずJSON形式とします。
-・JSONオブジェクトは次のような形式でお願いします：
+- 回答は絶対に文（〜です。〜だと思います等）にしないでください。補足や説明は不要です．
+- 回答は名詞や形容詞を中心に、単語または修飾語を含んだ短いフレーズにしてください。
+
+出力形式は必ず次のJSON形式に従ってください：
+
 {
   "theme": "ここにお題を入れてください",
   "answers": [
@@ -34,8 +39,6 @@ function createPrompt(theme) {
     "回答5"
   ]
 }
-・回答は人間らしく、発想がバラけていて、ユニークかつ自然な内容にしてください。
-・形式やJSON構造を絶対に崩さないでください。
 
 テーマ：「${theme}」
 `;
@@ -43,16 +46,17 @@ function createPrompt(theme) {
 
 export default async function handler(req, res) {
   try {
-    const theme = await getRandomTheme();
+    const theme = await getRandomThemeWithPrefix();
     const prompt = createPrompt(theme);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash-preview-05-20',
+    });
+
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
-    // JSON部分だけ抽出（バックティック囲みなどを除去）
     const jsonText = text.match(/\{[\s\S]*\}/)?.[0];
-
     if (!jsonText) {
       throw new Error('AIの出力からJSONを抽出できませんでした。');
     }
@@ -61,7 +65,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       theme: parsed.theme,
-      hints: parsed.answers // フロントの"hint"変数をそのまま使うため"answers"ではなく"hints"にする
+      hints: parsed.answers,
     });
   } catch (err) {
     console.error(err);
