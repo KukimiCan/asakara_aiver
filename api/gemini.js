@@ -20,15 +20,21 @@ async function getRandomThemeWithPrefix() {
 }
 
 function createPrompt(theme) {
+  const match = theme.match(/^「(.+)」で始まる/);
+  const requiredKana = match ? match[1] : null;
+
   return `
 あなたは「朝からそれ正解」に参加しているAI回答者です。
-次のお題に対して、5人の参加者が出しそうな「単語」や「短いフレーズ」を考えてください。
+次のお題に対して、参加者が出しそうな「単語」や「短いフレーズ」を5つ考えてください。
 
-- 回答は絶対に文（〜です。〜だと思います等）にしないでください。補足や説明は不要です．
-- 回答は名詞や形容詞を中心に、単語または修飾語を含んだ短いフレーズにしてください。
+【重要な制約】
+- 各回答は絶対に「${requiredKana}」で始まる言葉にしてください。
+- 例：${requiredKana}で始まる → OK：「${requiredKana}いぬ」「${requiredKana}んぱく」「${requiredKana}ま」など
+- 「${requiredKana}」で始まっていないもの（例：かいぬ、らんぱく、あまなど）は絶対に含めないでください。
+- 回答がどれも「${requiredKana}」で始まっていない場合は再提出になります。
 
-出力形式は必ず次のJSON形式に従ってください：
-
+【出力形式】
+以下の厳格なJSON形式で出力してください：
 {
   "theme": "ここにお題を入れてください",
   "answers": [
@@ -40,9 +46,15 @@ function createPrompt(theme) {
   ]
 }
 
-テーマ：「${theme}」
+その他の制約：
+- 各回答は文ではなく、単語または短い名詞句としてください（例：美しい花、黄色い犬など）
+- 回答に重複がないようにしてください
+- JSONの形式は絶対に守ってください
+
+お題：「${theme}」
 `;
 }
+
 
 export default async function handler(req, res) {
   try {
