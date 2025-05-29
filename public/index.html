@@ -58,6 +58,7 @@
   <script>
     let currentData = null;
     let hintIndex = 0;
+    let preloadedData = null; // ← プリフェッチ結果をここに保存
     const history = [];
 
     function showLoading(show) {
@@ -70,9 +71,18 @@
     async function fetchData() {
       showLoading(true);
       try {
-        const res = await fetch('/api/gemini');
-        const data = await res.json();
-        if (data.error) throw new Error(data.message);
+        let data = null;
+
+        // キャッシュがあれば使う、それ以外は即座にfetch
+        if (preloadedData) {
+          data = preloadedData;
+          preloadedData = null;
+        } else {
+          const res = await fetch('/api/gemini');
+          data = await res.json();
+          if (data.error) throw new Error(data.message);
+        }
+
         if (!data.hints || data.hints.length === 0) throw new Error('回答が取得できませんでした。');
 
         currentData = data;
@@ -88,6 +98,22 @@
         alert('エラーが発生しました: ' + err.message);
       } finally {
         showLoading(false);
+        prefetchData(); // ← 新しい次のお題をバックグラウンドで取得
+      }
+    }
+
+    async function prefetchData() {
+      try {
+        const res = await fetch('/api/gemini');
+        const data = await res.json();
+        if (!data.error && data.hints && data.hints.length > 0) {
+          preloadedData = data;
+        } else {
+          preloadedData = null;
+        }
+      } catch (err) {
+        preloadedData = null;
+        console.warn('プリフェッチ失敗:', err);
       }
     }
 
@@ -143,11 +169,12 @@
         if (currentData) {
           updateHistory(currentData.theme, currentData.hints);
         }
-        await fetchData();
+        await fetchData(); // ← プリフェッチ済みなら即反映される
       });
 
-      fetchData(); // 初回読み込み
+      fetchData(); // 初回読み込み＆プリフェッチ開始
     });
   </script>
+
 </body>
 </html>
