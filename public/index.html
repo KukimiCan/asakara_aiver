@@ -25,6 +25,12 @@
       background: #fff;
       border-left: 4px solid #ccc;
     }
+    #loading {
+      font-weight: bold;
+      color: #555;
+      margin: 1rem 0;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -40,6 +46,8 @@
     <button id="nextQuestionBtn" style="display: none;">次のお題へ</button>
   </div>
 
+  <div id="loading">読み込み中...</div>
+
   <h2>回答一覧：</h2>
   <ul id="hint-list"></ul>
 
@@ -52,7 +60,15 @@
     let hintIndex = 0;
     const history = [];
 
+    function showLoading(show) {
+      document.getElementById('loading').style.display = show ? 'block' : 'none';
+      document.getElementById('revealBtn').disabled = show;
+      document.getElementById('showThemeBtn').disabled = show;
+      document.getElementById('nextQuestionBtn').disabled = show;
+    }
+
     async function fetchData() {
+      showLoading(true);
       try {
         const res = await fetch('/api/gemini');
         const data = await res.json();
@@ -62,14 +78,16 @@
         currentData = data;
         hintIndex = 0;
 
-        // 初期化
         document.getElementById('hint-list').innerHTML = '';
         document.getElementById('themeText').textContent = '（お題はまだ非表示）';
         document.getElementById('revealBtn').style.display = 'inline-block';
+        document.getElementById('revealBtn').disabled = false;
         document.getElementById('showThemeBtn').style.display = 'none';
         document.getElementById('nextQuestionBtn').style.display = 'none';
       } catch (err) {
         alert('エラーが発生しました: ' + err.message);
+      } finally {
+        showLoading(false);
       }
     }
 
@@ -94,10 +112,8 @@
     function revealThemeAndAllHints() {
       if (!currentData) return;
 
-      // お題を表示
       document.getElementById('themeText').textContent = currentData.theme;
 
-      // 残りのヒントもすべて表示
       const list = document.getElementById('hint-list');
       while (hintIndex < currentData.hints.length) {
         const li = document.createElement('li');
