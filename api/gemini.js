@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     const theme = await getRandomTheme();
     const prompt = createPrompt(theme);
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
