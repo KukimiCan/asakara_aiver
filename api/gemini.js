@@ -9,7 +9,10 @@ function extractTargetKana(theme) {
 }
 
 function allHintsStartWith(hints, kana) {
-  return hints.every(hint => hint.startsWith(kana));
+  return hints.every(hint => {
+    const firstChar = hint[0];
+    return firstChar === kana && /^[\u3041-\u3096]/.test(firstChar); // ひらがなチェック
+  });
 }
 
 async function getValidProblem(maxAttempts = 5) {
@@ -22,12 +25,12 @@ async function getValidProblem(maxAttempts = 5) {
 }
 
 条件：
-- テーマは「◯で始まる◯◯とは？」というフォーマットで、お題は毎回ランダムに変えてください。
-- ◯の部分（文字）は日本語のひらがな一文字（例：「あ」「け」など）にしてください。
-- ◯◯は、抽象的なもの（例：人生で大切なもの、秘密にしているもの、机の中にあるもの、朝にあるとうれしいものなど）としてください。
-- hints は、答えを直接表すものではなく、「テーマの答えに関係する連想語や具体例」としてください。
-- hints の4つの単語は、すべて指定されたひらがなで始まる単語にしてください。
-- 出力は JSON のみ、余計な文は書かないでください。
+- theme は「◯で始まる◯◯とは？」という形式で、◯は日本語のひらがな一文字にしてください。
+- ◯◯は抽象的なもの（例：人生に大切なもの、心の奥にあるもの、秘密にしていること など）にしてください。
+- hints は、指定されたひらがな（theme 内の「◯」）で始まる、答えに連想的に関係する日本語の単語4つにしてください。
+- ヒントの各単語は必ずひらがな一文字から始まっていなければなりません（カタカナ・漢字・ローマ字不可）。
+- 必ず JSON オブジェクトだけを返し、補足・解説・説明は禁止です。
+
 `;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -52,7 +55,7 @@ async function getValidProblem(maxAttempts = 5) {
 
 export default async function handler(req, res) {
   try {
-    const json = await getValidProblem();
+    const json = await getValidProblem(8);
     res.status(200).json(json);
   } catch (err) {
     res.status(500).json({ error: 'Geminiの返答が取得できません', message: err.message });
