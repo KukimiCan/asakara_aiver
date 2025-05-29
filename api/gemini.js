@@ -25,7 +25,7 @@ async function getValidProblem(maxAttempts = 5) {
 }
 
 条件：
-- theme は次のサイトから選択してください．http://minasa.seesaa.net/article/397259675.html
+- theme は次のサイトのお題から選択してください（厳格）．http://minasa.seesaa.net/article/397259675.html
 - hints は、指定されたひらがな（theme 内の「◯」）で始まる、答えとなる日本語の単語4つにしてください。
 - ヒントの各単語は必ずひらがな一文字から始まっていなければなりません（カタカナ・漢字・ローマ字不可）。
 - 必ず JSON オブジェクトだけを返し、補足・解説・説明は禁止です。
