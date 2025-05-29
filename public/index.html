@@ -28,9 +28,9 @@
   </style>
 </head>
 <body>
-  <h1>「朝までそれ正解」風ヒントクイズ</h1>
+  <h1>「朝までそれ正解」風 回答ジェネレーター</h1>
 
-  <label for="hintCount">最大ヒント数：</label>
+  <label for="hintCount">最大表示数：</label>
   <select id="hintCount">
     <option value="1">1個</option>
     <option value="2">2個</option>
@@ -39,15 +39,16 @@
   </select>
 
   <div>
-    <button id="revealBtn">ヒントを見る</button>
-    <button id="showAnswerBtn">解答を見る</button>
+    <button id="revealBtn">回答を見る</button>
+    <button id="showAnswerBtn">お題を再確認</button>
     <button id="nextQuestionBtn" style="display: none;">次の問題へ</button>
   </div>
 
-  <h2>ヒント一覧：</h2>
-  <ul id="hint-list"></ul>
+  <!-- テーマの表示 -->
+  <div id="themeDisplay"><h2>お題：<span id="themeText">（読み込み中）</span></h2></div>
 
-  <div id="answer"></div>
+  <h2>回答一覧：</h2>
+  <ul id="hint-list"></ul>
 
   <hr />
 
@@ -56,78 +57,4 @@
 
   <script>
     let currentData = null;
-    let hintIndex = 0;
-    let maxHints = 4;
-    const history = [];
-
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/gemini');
-        const data = await res.json();
-        if (data.error) throw new Error(data.message);
-
-        currentData = data;
-        hintIndex = 0;
-
-        document.getElementById('hint-list').innerHTML = '';
-        document.getElementById('answer').innerHTML = '';
-        document.getElementById('nextQuestionBtn').style.display = 'none';
-        document.getElementById('revealBtn').style.display = 'inline-block';
-        document.getElementById('showAnswerBtn').style.display = 'inline-block';
-
-      } catch (err) {
-        alert('エラーが発生しました: ' + err.message);
-      }
-    }
-
-    function updateHints() {
-      if (!currentData || hintIndex >= Math.min(currentData.hints.length, maxHints)) return;
-
-      const list = document.getElementById('hint-list');
-      const hint = currentData.hints[hintIndex];
-      const li = document.createElement('li');
-      li.textContent = hint;
-      list.appendChild(li);
-      hintIndex++;
-
-      if (hintIndex >= Math.min(currentData.hints.length, maxHints)) {
-        document.getElementById('revealBtn').style.display = 'none';
-      }
-    }
-
-    function showAnswer() {
-      if (!currentData) return;
-
-      document.getElementById('answer').innerHTML = `<h2>正解：${currentData.theme}</h2>`;
-      document.getElementById('nextQuestionBtn').style.display = 'inline-block';
-    }
-
-    function updateHistory(theme, hints) {
-      history.push({ theme, hints });
-      const historyList = document.getElementById('historyList');
-      const div = document.createElement('div');
-      div.className = 'history-item';
-      div.innerHTML = `<strong>${theme}</strong><ul>${hints.map(h => `<li>${h}</li>`).join('')}</ul>`;
-      historyList.prepend(div);
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('revealBtn').addEventListener('click', updateHints);
-      document.getElementById('showAnswerBtn').addEventListener('click', showAnswer);
-
-      document.getElementById('nextQuestionBtn').addEventListener('click', async () => {
-        if (currentData) {
-          updateHistory(currentData.theme, currentData.hints.slice(0, maxHints));
-        }
-        await fetchData();
-      });
-
-      document.getElementById('hintCount').addEventListener('change', (e) => {
-        maxHints = parseInt(e.target.value, 10);
-      });
-
-      fetchData(); // 初回読み込み
-    });
-  </script>
-</body>
-</html>
+    let hintIn

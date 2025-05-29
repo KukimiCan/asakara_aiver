@@ -1,63 +1,70 @@
+import fs from 'fs/promises';
+import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
 
-function extractTargetKana(theme) {
-  const match = theme.match(/「(.{1})」で始まる/);
-  return match ? match[1] : null;
+// CSVファイルからお題をランダムに選択
+async function getRandomTheme() {
+  const filePath = path.join(process.cwd(), 'themes.csv');
+  const data = await fs.readFile(filePath, 'utf-8');
+  const lines = data
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+  const randomLine = lines[Math.floor(Math.random() * lines.length)];
+  return randomLine;
 }
 
-function allHintsStartWith(hints, kana) {
-  return hints.every(hint => {
-    const firstChar = hint[0];
-    return firstChar === kana && /^[\u3041-\u3096]/.test(firstChar); // ひらがなチェック
-  });
-}
+// Geminiへのプロンプト（JSON形式で複数の回答を返させる）
+function createPrompt(theme) {
+  return `
+あなたは「朝からそれ正解」のAI参加者です。
+次のテーマに対して、複数人の参加者が出しそうな「正解だと思う回答」を5つ考えてください。
 
-async function getValidProblem(maxAttempts = 5) {
-  const prompt = `
-以下の形式でJSONのみを返してください。説明・補足は禁止です。
-
+・出力形式は必ずJSON形式とします。
+・JSONオブジェクトは次のような形式でお願いします：
 {
-  "theme": "「◯」で始まる◯◯とは？",
-  "hints": ["ヒント1", "ヒント2", "ヒント3", "ヒント4"]
+  "theme": "ここにお題を入れてください",
+  "answers": [
+    "回答1",
+    "回答2",
+    "回答3",
+    "回答4",
+    "回答5"
+  ]
 }
+・回答は人間らしく、発想がバラけていて、ユニークかつ自然な内容にしてください。
+・形式やJSON構造を絶対に崩さないでください。
 
-条件：
-- theme は「◯で始まる◯◯とは？」という形式で、◯は日本語のひらがな一文字にしてください。
-- ◯◯は具体的なもの（例：日本が世界に誇れるもの、名作映画、お酒に合うつまみ など）にしてください。
-- hints は、指定されたひらがな（theme 内の「◯」）で始まる、答えとなる日本語の単語4つにしてください。
-- ヒントの各単語は必ずひらがな一文字から始まっていなければなりません（カタカナ・漢字・ローマ字不可）。
-- 必ず JSON オブジェクトだけを返し、補足・解説・説明は禁止です。
-
+テーマ：「${theme}」
 `;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      const jsonText = text.match(/\{[\s\S]*?\}/)?.[0];
-      if (!jsonText) continue;
-
-      const json = JSON.parse(jsonText);
-      const kana = extractTargetKana(json.theme);
-
-      if (!kana || !Array.isArray(json.hints) || json.hints.length !== 4) continue;
-      if (allHintsStartWith(json.hints, kana)) return json;
-    } catch {
-      continue;
-    }
-  }
-
-  throw new Error('有効な問題の生成に失敗しました。');
 }
 
 export default async function handler(req, res) {
   try {
-    const json = await getValidProblem(8);
-    res.status(200).json(json);
+    const theme = await getRandomTheme();
+    const prompt = createPrompt(theme);
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    // JSON部分だけ抽出（バックティック囲みなどを除去）
+    const jsonText = text.match(/\{[\s\S]*\}/)?.[0];
+
+    if (!jsonText) {
+      throw new Error('AIの出力からJSONを抽出できませんでした。');
+    }
+
+    const parsed = JSON.parse(jsonText);
+
+    res.status(200).json({
+      theme: parsed.theme,
+      hints: parsed.answers // フロントの"hint"変数をそのまま使うため"answers"ではなく"hints"にする
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Geminiの返答が取得できません', message: err.message });
+    console.error(err);
+    res.status(500).json({ error: true, message: err.message });
   }
 }
