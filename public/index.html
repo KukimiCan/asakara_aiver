@@ -17,33 +17,24 @@
   <h1>朝までそれ正解！</h1>
   <div id="prompt">お題を生成中...</div>
   <button id="nextBtn">次のお題へ</button>
+  <button id="revealBtn" disabled>回答を見る</button>
   <ul id="answers"></ul>
   <div id="error"></div>
 
   <script>
-    let questions = [];
+    import questionList from './questions.csv';
 
     const hiraList = [..."あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわ"];
 
-    async function loadQuestions() {
-      try {
-        const res = await fetch("questions.csv");
-        const text = await res.text();
-        questions = text
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .filter(line => line); // 空行除去
-      } catch (err) {
-        document.getElementById("error").textContent = `お題の読み込みに失敗しました: ${err.message}`;
-      }
-    }
+    let currentAnswers = [];
+    let currentIndex = 0;
 
     async function getAnswers(promptText) {
       try {
         const response = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: `「${promptText}」というお題に対して、ユニークで面白い答えを5つ挙げてください。一つずつ箇条書きで、日本語で出力してください。` })
+          body: JSON.stringify({ prompt: `「${promptText}」というお題に対して、ユニークで面白い単語を5つ挙げてください。箇条書きなしで、一行に1単語だけ出力してください。余計な説明は不要です。` })
         });
 
         const data = await response.json();
@@ -64,35 +55,38 @@
 
     async function showNewQuestion() {
       document.getElementById("error").textContent = "";
+      document.getElementById("answers").innerHTML = "";
+      document.getElementById("revealBtn").disabled = true;
+      currentIndex = 0;
+      currentAnswers = [];
 
-      if (questions.length === 0) {
-        document.getElementById("prompt").textContent = "お題が読み込まれていません";
-        return;
-      }
+      const response = await fetch("/questions.csv");
+      const csvText = await response.text();
+      const lines = csvText.trim().split("\n");
 
-      const randomQ = questions[Math.floor(Math.random() * questions.length)];
+      const randomQ = lines[Math.floor(Math.random() * lines.length)];
       const randomKana = hiraList[Math.floor(Math.random() * hiraList.length)];
       const promptText = `${randomKana}で始まる${randomQ}`;
       document.getElementById("prompt").textContent = promptText;
-      document.getElementById("answers").innerHTML = "<li>回答を生成中...</li>";
 
-      const answers = await getAnswers(promptText);
-      const ul = document.getElementById("answers");
-      ul.innerHTML = "";
-      answers.forEach(answer => {
+      currentAnswers = await getAnswers(promptText);
+      document.getElementById("revealBtn").disabled = false;
+    }
+
+    function showNextAnswer() {
+      if (currentIndex < currentAnswers.length) {
         const li = document.createElement("li");
-        li.textContent = answer;
-        ul.appendChild(li);
-      });
+        li.textContent = currentAnswers[currentIndex++];
+        document.getElementById("answers").appendChild(li);
+      }
+      if (currentIndex >= currentAnswers.length) {
+        document.getElementById("revealBtn").disabled = true;
+      }
     }
 
     document.getElementById("nextBtn").addEventListener("click", showNewQuestion);
-
-    window.addEventListener("load", async () => {
-      await loadQuestions();
-      showNewQuestion();
-    });
+    document.getElementById("revealBtn").addEventListener("click", showNextAnswer);
+    window.addEventListener("load", showNewQuestion);
   </script>
-
 </body>
 </html>
